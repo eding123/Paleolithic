@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "id": "paleolithic",
+  "version": "${version}",
+  "name": "Paleolithic",
+  "description": "Survive the last Ice Age. Works with unmodified clients.",
+  "authors": ["Paleolithic contributors"],
+  "license": "MIT",
+  "environment": "*",
+  "entrypoints": {
+    "main": ["dev.paleolithic.fabric.PaleolithicFabric"]
+  },
+  "depends": {
+    "fabricloader": ">=0.20.1",
+    "fabric-api": "*",
+    "minecraft": "~${minecraft_version}",
+    "java": ">=25"
+  }
+}

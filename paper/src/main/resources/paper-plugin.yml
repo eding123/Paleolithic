@@ -1,0 +1,7 @@
+name: Paleolithic
+version: '${version}'
+main: dev.paleolithic.paper.PaleolithicPaper
+bootstrapper: dev.paleolithic.paper.PaleolithicBootstrap
+api-version: '${minecraft_version}'
+description: Survive the last Ice Age. Works with unmodified clients.
+authors: [Paleolithic contributors]

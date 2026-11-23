@@ -1,0 +1,24 @@
+modLoader = "javafml"
+loaderVersion = "[1,)"
+license = "MIT"
+
+[[mods]]
+modId = "paleolithic"
+version = "${version}"
+displayName = "Paleolithic"
+authors = "Paleolithic contributors"
+description = "Survive the last Ice Age. Works with unmodified clients."
+
+[[dependencies.paleolithic]]
+modId = "neoforge"
+type = "required"
+versionRange = "[${neoforge_version},)"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.paleolithic]]
+modId = "minecraft"
+type = "required"
+versionRange = "[${minecraft_version},26.4)"
+ordering = "NONE"
+side = "BOTH"
