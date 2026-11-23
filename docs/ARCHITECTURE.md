@@ -92,5 +92,5 @@ Minecraft, Fabric Loom, NeoForge ModDevGradle and paperweight-userdev.
 
     ./gradlew :rules:test
 
-The wrapper uses Gradle 9.4.0, which Fabric Loom and ModDevGradle require for
-Minecraft 26.x.
+The wrapper uses Gradle 9.9.2 (kept current by Dependabot); Fabric Loom and
+ModDevGradle need Gradle 9 or newer for Minecraft 26.x.

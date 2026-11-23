@@ -8,3 +8,6 @@ runs/
 .vscode/
 .DS_Store
 /out-offline/
+
+# Private design documents (kept out of the public repo on purpose)
+/docs/private/
