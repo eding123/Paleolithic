@@ -1,5 +1,7 @@
 # Paleolithic
 
+[![CI](https://github.com/eding123/Paleolithic/actions/workflows/ci.yml/badge.svg)](https://github.com/eding123/Paleolithic/actions/workflows/ci.yml)
+
 An Ice Age survival mod for Minecraft Java Edition: everything invented after
 the Old Stone Age is gone, the world is frozen, and mammoths roam the steppe.
 
@@ -25,6 +27,12 @@ Technical decisions and the module layout are in
 Requires a JDK 21 or newer (Minecraft 26.x itself needs Java 25).
 
     ./gradlew :rules:test
+
+## Releases
+
+There are no releases yet: the first one will be a playable build. Releases
+are published automatically from version tags; see
+[docs/RELEASING.md](docs/RELEASING.md) and [CHANGELOG.md](CHANGELOG.md).
 
 ## License
 

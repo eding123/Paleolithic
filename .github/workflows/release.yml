@@ -1,0 +1,84 @@
+name: Release
+
+# Publishes a GitHub release when a version tag is pushed, for example:
+#   git tag v1.0.0 && git push origin v1.0.0
+# See docs/RELEASING.md for the full checklist.
+
+on:
+  push:
+    tags: ['v*']
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Check the tag matches mod_version
+        id: version
+        run: |
+          VERSION=$(grep '^mod_version=' gradle.properties | cut -d= -f2 | tr -d '[:space:]')
+          TAG="${GITHUB_REF_NAME}"
+          if [ "v${VERSION}" != "${TAG}" ]; then
+            echo "::error::Tag ${TAG} does not match mod_version=${VERSION} in gradle.properties"
+            exit 1
+          fi
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          if [[ "${VERSION}" == *-* ]]; then
+            echo "prerelease=--prerelease" >> "$GITHUB_OUTPUT"
+          else
+            echo "prerelease=" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Extract release notes from CHANGELOG.md
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          awk -v v="$VERSION" '
+            $0 ~ "^## \\[" v "\\]" { found = 1; next }
+            found && /^## \[/ { exit }
+            found { print }
+          ' CHANGELOG.md > release-notes.md
+          if ! grep -q '[^[:space:]]' release-notes.md; then
+            echo "::error::CHANGELOG.md has no section for [${VERSION}]"
+            exit 1
+          fi
+
+      - name: Build, test and collect artifacts
+        run: ./gradlew build collectReleaseArtifacts --stacktrace
+
+      - name: Check there is something to release
+        run: |
+          shopt -s nullglob
+          files=(build/release/*)
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "::error::No release artifacts in build/release. Platform modules must register their jars with collectReleaseArtifacts (docs/RELEASING.md)."
+            exit 1
+          fi
+          (cd build/release && sha256sum * > SHA256SUMS.txt)
+
+      - name: Create the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" build/release/* \
+            --title "Paleolithic ${VERSION}" \
+            --notes-file release-notes.md \
+            --verify-tag \
+            ${{ steps.version.outputs.prerelease }}
