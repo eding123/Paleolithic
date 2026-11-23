@@ -4,6 +4,7 @@ import dev.paleolithic.core.Paleolithic;
 import dev.paleolithic.core.platform.Platform;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerEntityEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
@@ -22,6 +23,7 @@ public final class PaleolithicFabric implements ModInitializer, Platform {
         ServerLifecycleEvents.SERVER_STARTED.register(core::serverStarted);
         ServerLifecycleEvents.SERVER_STOPPING.register(core::serverStopping);
         ServerTickEvents.END_SERVER_TICK.register(core::serverTick);
+        ServerEntityEvents.ENTITY_LOAD.register((entity, level) -> core.entityLoaded(entity));
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> core.playerJoined(handler.player));
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> core.playerLeft(handler.player));
         ServerPlayerEvents.AFTER_RESPAWN.register((oldPlayer, newPlayer, alive) -> {

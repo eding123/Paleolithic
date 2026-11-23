@@ -1,11 +1,13 @@
 package dev.paleolithic.core;
 
+import dev.paleolithic.core.creature.Creatures;
 import dev.paleolithic.core.data.PlayerStore;
 import dev.paleolithic.core.heat.HeatSystem;
 import dev.paleolithic.core.platform.Platform;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.Entity;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -21,6 +23,7 @@ public final class Paleolithic {
 
     private final Platform platform;
     private HeatSystem heat;
+    private final Creatures creatures = new Creatures();
 
     public Paleolithic(Platform platform) {
         this.platform = platform;
@@ -50,6 +53,12 @@ public final class Paleolithic {
 
     public void serverTick(MinecraftServer server) {
         if (heat != null) heat.tick(server);
+        creatures.tick(server);
+    }
+
+    /** An entity was added to a server level, by chunk loading or by spawning. */
+    public void entityLoaded(Entity entity) {
+        creatures.entityLoaded(entity);
     }
 
     public void playerJoined(ServerPlayer player) {
@@ -63,5 +72,6 @@ public final class Paleolithic {
     /** Call only for a respawn after death, not for leaving the End. */
     public void playerRespawnedAfterDeath(ServerPlayer player) {
         if (heat != null) heat.respawnAfterDeath(player);
+        dev.paleolithic.core.creature.Herds.forgive(player.getUUID());
     }
 }

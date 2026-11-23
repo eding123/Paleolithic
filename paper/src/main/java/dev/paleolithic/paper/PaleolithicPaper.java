@@ -1,5 +1,6 @@
 package dev.paleolithic.paper;
 
+import com.destroystokyo.paper.event.entity.EntityAddToWorldEvent;
 import com.destroystokyo.paper.event.player.PlayerPostRespawnEvent;
 import dev.paleolithic.core.Paleolithic;
 import dev.paleolithic.core.platform.Platform;
@@ -36,6 +37,11 @@ public final class PaleolithicPaper extends JavaPlugin implements Platform, List
     @Override
     public void onDisable() {
         if (core != null) core.serverStopping(Handles.server());
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onEntityAdded(EntityAddToWorldEvent e) {
+        if (core != null) core.entityLoaded(Handles.entity(e.getEntity()));
     }
 
     @EventHandler(priority = EventPriority.MONITOR)
