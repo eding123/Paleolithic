@@ -25,3 +25,7 @@ Technical decisions and the module layout are in
 Requires a JDK 21 or newer (Minecraft 26.x itself needs Java 25).
 
     ./gradlew :rules:test
+
+## License
+
+[MIT](LICENSE)
