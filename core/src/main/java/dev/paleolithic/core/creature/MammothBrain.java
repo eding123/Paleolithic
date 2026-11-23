@@ -85,11 +85,15 @@ final class MammothBrain extends Goal {
     private Vec3 chargeDir;
     private boolean chargeHit;
     private int lastSeenHurt;
+    private int repathIn;
+    private Mob anchor;
+    private int anchorIn;
 
     MammothBrain(PathfinderMob mob, Species species) {
         this.mob = mob;
         this.species = species;
-        setFlags(EnumSet.of(Goal.Flag.MOVE, Goal.Flag.LOOK, Goal.Flag.JUMP));
+        // No JUMP flag: FloatGoal keeps it swimming while this goal keeps reacting.
+        setFlags(EnumSet.of(Goal.Flag.MOVE, Goal.Flag.LOOK));
         this.trumpetIn = randomTrumpet();
         this.lastSeenHurt = mob.getLastHurtByMobTimestamp();
     }
@@ -108,8 +112,11 @@ final class MammothBrain extends Goal {
             double moved = debugLast == null ? 0 : mob.position().subtract(debugLast).horizontalDistance();
             debugLast = mob.position();
             Mob adult = species.isCalf() ? nearestAdult(Herds.herdOf(mob)) : null;
-            dev.paleolithic.core.Paleolithic.LOG.info("{} #{} action={} speed={} b/s health={}{}",
+            Herds.Mood dm = Herds.mood(Herds.herdOf(mob));
+            dev.paleolithic.core.Paleolithic.LOG.info("{} #{} action={} speed={} b/s health={} angry={} defenders={} defending={}{}",
                     species, mob.getId(), action, String.format("%.2f", moved), mob.getHealth(),
+                    dm.attacker != null && level.getGameTime() < dm.angryUntil, dm.defenders.size(),
+                    dm.defenders.contains(mob.getUUID()),
                     adult == null ? "" : String.format(" adult=%.1f", mob.distanceTo(adult)));
         }
         long now = level.getGameTime();
@@ -157,7 +164,7 @@ final class MammothBrain extends Goal {
 
     private void checkCalfAlarm(ServerLevel level, String herd, long now) {
         double r = MammothSetup.detectionRadius(level, species);
-        Player p = level.getNearestPlayer(mob, r * CALF_ALARM);
+        Player p = level.getNearestPlayer(mob.getX(), mob.getY(), mob.getZ(), r * CALF_ALARM, true);
         if (p instanceof ServerPlayer sp && isHuntable(sp)) Herds.provoke(mob, herd, p.getUUID(), now, DEFEND_RADIUS);
     }
 
@@ -209,7 +216,11 @@ final class MammothBrain extends Goal {
                     actionTicks = 0;
                     trumpet(level, 1.2f);
                 } else {
-                    mob.getNavigation().moveTo(target, speed(species.runSpeed));
+                    // Re-plan the path a few times a second, as vanilla's melee goal does.
+                    if (mob.getNavigation().isDone() || --repathIn <= 0) {
+                        mob.getNavigation().moveTo(target, speed(species.runSpeed));
+                        repathIn = 10;
+                    }
                     mob.getLookControl().setLookAt(target, 30, 30);
                 }
             }
@@ -226,7 +237,7 @@ final class MammothBrain extends Goal {
     }
 
     private void sweep(ServerLevel level) {
-        Vec3 facing = Vec3.directionFromRotation(0, mob.getYRot());
+        Vec3 facing = Vec3.directionFromRotation(0, mob.getYHeadRot());
         double halfArc = Math.toRadians(SWEEP_ARC_DEGREES / 2);
         for (ServerPlayer p : level.getEntitiesOfClass(ServerPlayer.class, mob.getBoundingBox().inflate(SWEEP_REACH))) {
             if (!isHuntable(p) || horizontalGap(p) > SWEEP_REACH) continue;
@@ -302,17 +313,20 @@ final class MammothBrain extends Goal {
     }
 
     private void graze(ServerLevel level, String herd) {
-        Mob anchor = null;
         double leash;
-        if (species.isCalf()) {
-            anchor = nearestAdult(herd);
-            leash = CALF_LEASH;
-        } else if (!mob.entityTags().contains(Herds.LEADER)) {
-            anchor = leader(herd);
-            leash = ADULT_LEASH;
-        } else {
-            leash = ROAM_RADIUS;
+        boolean leader = mob.entityTags().contains(Herds.LEADER);
+        if (!leader && (--anchorIn <= 0 || anchor == null || !anchor.isAlive())) {
+            // Looking for the mother or leader is an area scan; refresh it once a second.
+            anchor = species.isCalf() ? nearestAdult(herd) : leader(herd);
+            anchorIn = 20;
         }
+        if (leader) {
+            anchor = null;
+            leash = ROAM_RADIUS;
+        } else {
+            leash = species.isCalf() ? CALF_LEASH : ADULT_LEASH;
+        }
+        Mob anchor = this.anchor;
 
         if (anchor != null && mob.distanceTo(anchor) > leash - 2) {
             // Too far from mother or leader: walk back, a little faster than grazing.
@@ -341,7 +355,7 @@ final class MammothBrain extends Goal {
 
     private void lookAtWatcher(ServerLevel level) {
         double r = MammothSetup.detectionRadius(level, species);
-        Player p = level.getNearestPlayer(mob, r);
+        Player p = level.getNearestPlayer(mob.getX(), mob.getY(), mob.getZ(), r, true);
         if (p instanceof ServerPlayer sp && isHuntable(sp) && mob.getNavigation().isDone()) {
             // Alert: the head follows the player who has been noticed.
             double sneak = p.isShiftKeyDown() ? 0.5 : 1.0;

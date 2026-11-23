@@ -28,6 +28,8 @@ public final class Herds {
         long angryUntil;
         /** Adults that joined the defence: those within 24 blocks of the animal that raised the alarm. */
         final java.util.Set<UUID> defenders = new java.util.HashSet<>();
+        /** When each alarmed animal last looked for defenders, so a repeated alarm rescans once a second. */
+        final Map<UUID, Long> lastScan = new HashMap<>();
         long fleeingUntil;
         Vec3 fleeFrom;
     }
@@ -65,7 +67,15 @@ public final class Herds {
                 m -> m.isAlive() && m.entityTags().contains(tag));
     }
 
+    private static final Mood NONE = new Mood();
+
+    /** The herd's mood; a shared calm value when the herd has none, so reading never allocates. */
     static Mood mood(String herd) {
+        Mood m = herd == null ? null : MOODS.get(herd);
+        return m == null ? NONE : m;
+    }
+
+    private static Mood moodForWrite(String herd) {
         return herd == null ? new Mood() : MOODS.computeIfAbsent(herd, h -> new Mood());
     }
 
@@ -74,11 +84,18 @@ public final class Herds {
      * Adults within {@code radius} of that member defend it.
      */
     static void provoke(Mob alarmed, String herd, UUID attacker, long now, double radius) {
-        Mood m = mood(herd);
+        Mood m = moodForWrite(herd);
         if (now < m.fleeingUntil) return;
-        if (!attacker.equals(m.attacker) || now >= m.angryUntil) m.defenders.clear();
+        if (!attacker.equals(m.attacker) || now >= m.angryUntil) {
+            m.defenders.clear();
+            m.lastScan.clear();
+        }
         m.attacker = attacker;
         m.angryUntil = now + MammothBrain.ANGER_TICKS;
+        // A repeated alarm from the same animal rescans for defenders once a second, not every tick.
+        Long scanned = m.lastScan.get(alarmed.getUUID());
+        if (scanned != null && now - scanned < 20) return;
+        m.lastScan.put(alarmed.getUUID(), now);
         for (Mob member : members(alarmed, herd, radius)) {
             if (member.entityTags().contains(Species.MAMMOTH_CALF.tag()) || member.distanceTo(alarmed) > radius) continue;
             m.defenders.add(member.getUUID());
@@ -86,19 +103,21 @@ public final class Herds {
     }
 
     static void flee(String herd, Vec3 from, long now) {
-        Mood m = mood(herd);
+        Mood m = moodForWrite(herd);
         m.attacker = null;
         m.angryUntil = 0;
         m.defenders.clear();
+        m.lastScan.clear();
         m.fleeFrom = from;
         m.fleeingUntil = now + MammothBrain.FLEE_TICKS;
     }
 
     static void calm(String herd) {
-        Mood m = mood(herd);
+        Mood m = moodForWrite(herd);
         m.attacker = null;
         m.angryUntil = 0;
         m.defenders.clear();
+        m.lastScan.clear();
     }
 
     /** A player died: no herd keeps hunting them after they respawn (spec rule 4, fail forward). */
@@ -108,6 +127,7 @@ public final class Herds {
                 m.attacker = null;
                 m.angryUntil = 0;
                 m.defenders.clear();
+                m.lastScan.clear();
             }
         }
     }

@@ -58,6 +58,7 @@ public final class HeatSystem {
         PlayerHeat heat = players.get(player.getUUID());
         if (heat == null) return;
         heat.body.respawn();
+        heat.wet.load(Integer.MAX_VALUE / 2); // respawn dry
         heat.ticksUntilStep = 1;
     }
 

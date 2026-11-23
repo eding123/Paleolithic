@@ -43,6 +43,8 @@ public final class Paleolithic {
         heat = new HeatSystem(new PlayerStore(server));
         // Players already online (for example after a plugin reload) join now.
         server.getPlayerList().getPlayers().forEach(heat::join);
+        // Creatures already in loaded chunks (for example after a plugin reload) get their AI too.
+        for (var level : server.getAllLevels()) level.getAllEntities().forEach(creatures::entityLoaded);
         LOG.info("Paleolithic body heat running on {}", platform.name());
     }
 
