@@ -19,3 +19,7 @@ section whose heading matches the tag as the release notes.
   blocks, campfires, lava, fire, magma blocks and torches all count. Cold
   slows you down and, on Normal and Hard, hypothermia hurts. Second Wind after
   respawning. Body heat is saved with the world.
+- Woolly mammoth prototype: herds with calves graze, trumpet, defend their
+  young, sweep with their tusks, charge with a clear warning and flee when
+  badly hurt. Unmodified clients see a large ravager until the resource pack
+  adds the model.

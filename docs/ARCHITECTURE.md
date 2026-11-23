@@ -120,6 +120,36 @@ game window.
 **D21. Creative and spectator players do not cool.** Their HUD keeps showing
 the last value. Matches how vanilla treats hunger.
 
+**D22. Stand-in AI is replaced through the goal selectors, by reflection.**
+`Mob.goalSelector` and `targetSelector` are protected; core reaches them with
+reflection (`creature/MobAccess`). Field names are the same on every
+platform because 26.x is unobfuscated, and it was checked on Fabric, NeoForge
+and Paper. One goal per creature (`MammothBrain`) owns movement, looking and
+jumping and runs the whole behaviour as a small state machine.
+
+**D23. Creatures are marked with scoreboard tags.** `paleolithic.mammoth`,
+`paleolithic.mammoth_calf`, `paleolithic.herd.<id>`, `paleolithic.home.<x>_<y>_<z>`
+and `paleolithic.leader` are saved with the entity by vanilla. When an entity
+loads or spawns, each adapter forwards it to core, which re-applies the AI at
+the end of the tick. Short-lived herd mood (anger, flight) is in memory only.
+
+**D24. Speeds are converted with the square law.** A walking mob's top speed
+is 44.05 x s^2 blocks per second for s = attribute x modifier (the move
+control uses s as both speed and input). Measured in game: grazing 2.5 to 3,
+charge 6.0, flight about 6.
+
+**D25. Until natural spawning exists, herds are placed with a vanilla
+command.** `/summon ravager ~ ~ ~ {Tags:["paleolithic.spawn.mammoth_herd"]}`
+becomes a herd of 3 to 6 with 1 to 2 calves. No platform command code needed.
+
+**D26. Ravager loot is empty.** Mammoth stand-ins would otherwise drop
+saddles, which the spec bans; ravagers do not exist otherwise in an Ice Age
+world. Carcasses replace this when they arrive.
+
+**D27. A herd forgets a player who dies.** Without this, a herd kept
+attacking the respawned player for the rest of its 30 seconds of anger (spec
+rule 4, fail forward).
+
 ## Milestone 2 — platform modules
 
 Status 2026-11-22: steps 1 to 3 done. Toolchain pinned to Minecraft 26.3
@@ -129,7 +159,19 @@ vertical slice runs on all three platforms and was checked with `testbot`
 campfire, night, shelter, insulation, blizzard, death and Second Wind, saving
 across rejoin and restart. Not done in the slice: health-regeneration and
 hunger penalties of the cold states, wetness from rain was not exercised,
-clothing, hints in chat, the resource pack. Next: step 4.
+clothing, hints in chat, the resource pack.
+
+Step 4, mammoth prototype (2026-11-22): playable on all three platforms on a
+vanilla client. Herd of 3 to 6 with calves, stand-in at the spec's scale and
+health, grazing around a home point, calves within 6 blocks of an adult,
+trumpet every 1 to 3 minutes, defence when hurt or when a player is near a
+calf, tusk sweep (14 after a 0.8 s tell), charge (10 blocks at 6.0 after a
+1.0 s tell), herd flight below 25% health, saved across restarts. Not in the
+prototype: detection modifiers beyond night and sneaking (wind, blizzard),
+avoiding deep water and crevasses, carcasses, natural spawning, herd
+migration and calf births, the display-entity model for players with the
+pack, custom navigation for big bodies, and Peaceful difficulty (vanilla
+removes ravagers there).
 
 
 Needs a machine with network access, because the build has to download

@@ -60,3 +60,23 @@ prints what that client would see. It needs no game window.
 All of these were seen on Fabric, NeoForge and Paper on 2026-11-22 (Paper
 ran the hut and blizzard rows; Fabric the campfire and night rows; NeoForge
 and Paper the respawn row).
+
+### Mammoth herd
+
+Add `gamerule spawn_mobs false` first (flat worlds spawn slimes). Then:
+
+    0.5:kill @e[type=!player];3:summon ravager ~22 ~ ~ {Tags:["paleolithic.spawn.mammoth_herd"]};30:damage @e[tag=paleolithic.mammoth,tag=!paleolithic.leader,limit=1,sort=nearest] 4 minecraft:player_attack by Tester
+
+The bot prints `SPAWN ravager`, `ATTR ... scale=1.400 max_health=120.000`
+(adults) or `scale=0.500 max_health=30.000` (calves), the trumpet
+(`entity.ravager.roar vol=6.0`), sweep tells (`entity.ravager.attack`) and
+its own `HEALTH`. Start the server with `-Dpaleolithic.debugCreatures=true` to
+log each creature's action, ground speed and, for calves, distance to the
+nearest adult once per second.
+
+Seen on Fabric, NeoForge and Paper on 2026-11-22: herd spawns at the right
+sizes; grazing at 2.5 to 3 blocks/s; calves 2 to 4.5 blocks from an adult;
+after a hit, charge tells and charges at 6.0; sweep damage 0.8 s after its
+sound; whole herd flees at about 6 once a mammoth is below 25%; no loot;
+herd and stats survive a restart (NeoForge); a dead player is left alone after
+respawning (Paper).
