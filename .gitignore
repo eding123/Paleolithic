@@ -11,3 +11,6 @@ runs/
 
 # Private design documents (kept out of the public repo on purpose)
 /docs/private/
+
+# Agent workflow notes (decision cards, reviews); local only
+/.agent/
