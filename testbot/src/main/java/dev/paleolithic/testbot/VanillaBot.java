@@ -36,7 +36,15 @@ import net.minecraft.network.protocol.configuration.ServerboundFinishConfigurati
 import net.minecraft.network.protocol.configuration.ServerboundSelectKnownPacks;
 import net.minecraft.network.protocol.common.ClientboundUpdateTagsPacket;
 import net.minecraft.network.protocol.game.ClientGamePacketListener;
+import net.minecraft.network.protocol.game.ClientboundAddEntityPacket;
+import net.minecraft.network.protocol.game.ClientboundEntityPositionSyncPacket;
 import net.minecraft.network.protocol.game.ClientboundLoginPacket;
+import net.minecraft.network.protocol.game.ClientboundRemoveEntitiesPacket;
+import net.minecraft.network.protocol.game.ClientboundSoundPacket;
+import net.minecraft.network.protocol.game.ClientboundUpdateAttributesPacket;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
+import net.minecraft.world.phys.Vec3;
 import net.minecraft.network.protocol.game.ClientboundPlayerCombatKillPacket;
 import net.minecraft.network.protocol.game.ServerboundClientCommandPacket;
 import net.minecraft.network.protocol.game.ClientboundSetActionBarTextPacket;
@@ -81,6 +89,8 @@ public final class VanillaBot {
     private final CountDownLatch closed = new CountDownLatch(1);
     private final RegistryDataCollector registries = new RegistryDataCollector();
     private volatile long joinedAt;
+    private final java.util.Map<Integer, Vec3> creatures = new java.util.concurrent.ConcurrentHashMap<>();
+    private volatile float lastHealth = -1;
 
     private VanillaBot(String host, int port, String name) {
         this.host = host;
@@ -135,6 +145,10 @@ public final class VanillaBot {
             long wait = joinedAt + (long) (step.at * 1000) - System.currentTimeMillis();
             if (wait > 0 && closed.await(wait, TimeUnit.MILLISECONDS)) break;
             if (closed.getCount() == 0) break;
+            if (step.command.equals("report")) {
+                creatures.forEach((id, pos) -> log(String.format("AT #%d %.1f %.1f %.1f", id, pos.x, pos.y, pos.z)));
+                continue;
+            }
             if (step.command.equals("quit")) {
                 log("QUIT");
                 connection.disconnect(net.minecraft.network.chat.Component.literal("bot done"));
@@ -161,7 +175,11 @@ public final class VanillaBot {
                 connection.setupInboundProtocol(ConfigurationProtocols.CLIENTBOUND, configurationListener());
                 connection.send(ServerboundLoginAcknowledgedPacket.INSTANCE);
                 connection.setupOutboundProtocol(ConfigurationProtocols.SERVERBOUND);
-                connection.send(new ServerboundClientInformationPacket(ClientInformation.createDefault()));
+                ClientInformation d = ClientInformation.createDefault();
+                // A normal client's view distance, so entities are tracked as for a player.
+                connection.send(new ServerboundClientInformationPacket(new ClientInformation(d.language(), 10,
+                        d.chatVisibility(), d.chatColors(), d.modelCustomisation(), d.mainHand(),
+                        d.textFilteringEnabled(), d.allowsListing(), d.particleStatus())));
             } else {
                 return false;
             }
@@ -201,8 +219,17 @@ public final class VanillaBot {
     }
 
     private ClientGamePacketListener gameListener() {
-        return listener(ClientGamePacketListener.class, ConnectionProtocol.PLAY, packet -> {
+        return listener(ClientGamePacketListener.class, ConnectionProtocol.PLAY, this::handleGame);
+    }
+
+    private boolean handleGame(Object packet) {
+        {
             if (common(packet)) return true;
+            if (packet instanceof net.minecraft.network.protocol.game.ClientboundBundlePacket bundle) {
+                // Spawns arrive grouped; a real client unpacks them the same way.
+                for (var sub : bundle.subPackets()) handleGame(sub);
+                return true;
+            }
             if (packet instanceof ClientboundLoginPacket) {
                 connection.send(new ServerboundPlayerLoadedPacket());
                 joinedAt = System.currentTimeMillis();
@@ -210,6 +237,39 @@ public final class VanillaBot {
             } else if (packet instanceof ClientboundPlayerCombatKillPacket) {
                 log("DIED, respawning");
                 connection.send(new ServerboundClientCommandPacket(ServerboundClientCommandPacket.Action.PERFORM_RESPAWN));
+            } else if (packet instanceof ClientboundAddEntityPacket p && p.getType() != EntityTypes.RAVAGER
+                    && p.getType() != EntityTypes.ITEM && p.getType() != EntityTypes.EXPERIENCE_ORB) {
+                log("SPAWN other " + EntityType.getKey(p.getType()) + " #" + p.getId());
+            } else if (packet instanceof ClientboundAddEntityPacket p && p.getType() == EntityTypes.RAVAGER) {
+                creatures.put(p.getId(), new Vec3(p.getX(), p.getY(), p.getZ()));
+                log(String.format("SPAWN ravager #%d at %.1f %.1f %.1f", p.getId(), p.getX(), p.getY(), p.getZ()));
+            } else if (packet instanceof ClientboundUpdateAttributesPacket p && creatures.containsKey(p.getEntityId())) {
+                StringBuilder b = new StringBuilder("ATTR #" + p.getEntityId());
+                for (var a : p.getValues()) {
+                    String name = a.attribute().unwrapKey().map(k -> k.identifier().getPath()).orElse("?");
+                    if (name.equals("scale") || name.equals("max_health") || name.equals("movement_speed")) {
+                        b.append(' ').append(name).append('=').append(String.format("%.3f", a.base()));
+                    }
+                }
+                log(b.toString());
+            } else if (packet instanceof ClientboundEntityPositionSyncPacket p && creatures.containsKey(p.id())) {
+                creatures.put(p.id(), p.position().endPosition());
+            } else if (packet instanceof ClientboundRemoveEntitiesPacket p) {
+                for (int id : p.entityIds()) {
+                    if (creatures.remove(id) != null) log("GONE #" + id);
+                }
+            } else if (packet instanceof ClientboundSoundPacket p) {
+                String id = p.getSound().unwrapKey().map(k -> k.identifier().toString())
+                        .orElseGet(() -> p.getSound().value().location().toString());
+                log(String.format("SOUND %s vol=%.1f pitch=%.2f at %.0f %.0f %.0f", id, p.getVolume(), p.getPitch(),
+                        p.getX(), p.getY(), p.getZ()));
+            } else if (packet instanceof ClientboundSetHealthPacket p && p.getHealth() != lastHealth) {
+                lastHealth = p.getHealth();
+                log(String.format("HEALTH %.1f", p.getHealth()));
+                if (p.getHealth() <= 0) {
+                    log("DEAD, respawning");
+                    connection.send(new ServerboundClientCommandPacket(ServerboundClientCommandPacket.Action.PERFORM_RESPAWN));
+                }
             } else if (packet instanceof ClientboundSetHealthPacket p && p.getHealth() <= 0) {
                 // Joined while dead: the death screen's respawn button.
                 log("DEAD on join, respawning");
@@ -224,7 +284,7 @@ public final class VanillaBot {
                 return false;
             }
             return true;
-        });
+        }
     }
 
     /** Packets every phase must answer to stay connected. */
