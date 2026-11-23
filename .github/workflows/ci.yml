@@ -15,16 +15,18 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7
 
-      # Java 21 builds the rules module. Java 25 is added here when the
-      # Minecraft platform modules (core, fabric, neoforge, paper) arrive.
+      # Java 21 builds the rules module; Java 25 runs Gradle and builds the
+      # Minecraft modules (docs/ARCHITECTURE.md, D3 and D19).
       - uses: actions/setup-java@v6
         with:
           distribution: temurin
-          java-version: 21
+          java-version: |
+            21
+            25
 
       # Also validates the Gradle wrapper jar against Gradle's published checksums.
       - uses: gradle/actions/setup-gradle@v6

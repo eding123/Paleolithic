@@ -20,13 +20,17 @@ Technical decisions and the module layout are in
 | Part | State |
 |---|---|
 | `rules` — heat, shelter, fire, diet, knapping, detection, wind, game pressure, carcasses | Implemented, 67 tests passing |
-| `core`, `fabric`, `neoforge`, `paper`, `client` | Next milestone |
+| `core`, `fabric`, `neoforge`, `paper` (Minecraft 26.3) | Body heat on the experience bar and status line, on unmodified clients |
+| `client`, content (items, creatures, world generation) | Not started |
 
 ## Build
 
-Requires a JDK 21 or newer (Minecraft 26.x itself needs Java 25).
+Any JDK works to start the wrapper; Gradle downloads Java 25 (and Java 21 for
+`rules`) itself if missing.
 
-    ./gradlew :rules:test
+    ./gradlew build
+
+Jars land in each platform's `build/libs`. In-game checks: [docs/TESTING.md](docs/TESTING.md).
 
 ## Releases
 

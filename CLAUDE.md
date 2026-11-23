@@ -48,10 +48,10 @@ implement the rules, and short references such as "spec section 5" are fine.
 - CI and a tag-driven release workflow are in `.github/workflows`; see
   `docs/RELEASING.md`. Platform jars must register with
   `collectReleaseArtifacts`.
-- Next: milestone 2 in `docs/ARCHITECTURE.md`. Pin toolchain versions, create
-  `core`, then the `fabric`, `neoforge` and `paper` adapters with a vertical
-  slice: body heat driving the experience bar and status line on an
-  unmodified client, on all three platforms. Then the mammoth prototype.
+- `core`, `fabric`, `neoforge`, `paper` exist for Minecraft 26.3; the body
+  heat slice runs on all three (milestone 2 status in `docs/ARCHITECTURE.md`).
+  Check in-game behaviour with `testbot` (`docs/TESTING.md`).
+- Next: the mammoth prototype (milestone 2, step 4).
 
 ## Working rules
 
